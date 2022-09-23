@@ -1,0 +1,46 @@
+# use hooks.exit to add exit handler and can use template
+# onExit will DEPRECATED and it's key can only be string mean can not use template external
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: hello-world-
+  #name: hello-world-zz
+  namespace: argo
+spec:
+  entrypoint: main
+  onExit: exit-handler
+  templates:
+    - name: main
+      dag:
+        tasks:
+          - name: first
+            template: whalesay
+          - name: second
+            dependencies : [first]
+            template: whalesay
+            hooks:
+              exit:
+                expression: tasks.second.status == "Failed"
+                templateRef:
+                  name: parallelism-limit
+                  template: main
+          - name: third
+            dependencies : [first]
+            template: whalesay
+            onExit: exit-handler
+          - name: four
+            dependencies : [second]
+            template: whalesay
+
+    - name: whalesay
+      container:
+        image: docker/whalesay
+        command: [cowsay]
+        args: ["hello world"]
+
+
+    - name: exit-handler
+      container:
+        image: alpine:latest
+        command: [sh, -c]
+        args: ["echo hooray!"]
