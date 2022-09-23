@@ -1,0 +1,44 @@
+# can pass a json array as parameters and use withParam to create multi task or steps
+#
+# argo -n argo submit json-parameter.yaml -p message='["a","b","c"]'
+
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: json-parameter-
+spec:
+  entrypoint: json-parameter
+  arguments:
+    parameters:
+      - name: message
+        value: ["a"]
+  templates:
+  - name: json-parameter
+    inputs:
+      parameters:
+        - name: message
+    dag:
+      tasks:
+        - name: A
+          template: echo
+          arguments:
+            parameters:
+              - name: message
+                value: A
+        - name: B
+          dependencies: [A]
+          template: echo
+          arguments:
+            parameters:
+              - name: message
+                value: "{{item}}"
+          withParam: "{{inputs.parameters.message}}"
+
+  - name: echo
+    inputs:
+      parameters:
+        - name: message
+    container:
+      image: docker/whalesay
+      command: [cowsay]
+      args: ["{{inputs.parameters.message}}"]
