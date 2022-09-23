@@ -1,0 +1,60 @@
+# can't pass artifacts as json and use withParam to create multi task or step
+#
+# only can use middle step to output file content and next task use it by output
+#
+# but can  use file by valueFrom see withartifacts-1.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: test-artifact-
+spec:
+  entrypoint: test-pipeline
+  templates:
+    - name: create-artifact
+      container:
+        image: alpine:latest
+        command: [sh, -c]
+        args:
+          - >
+            echo '[{"foo":"bar"},{"bar":"baz"}]' | tee /tmp/output.json;
+      outputs:
+        artifacts:
+          - name: output
+            path: /tmp/output.json
+    - name: parse
+      inputs:
+        artifacts:
+          - name: message
+            path: /tmp/message
+      container:
+        image: alpine:latest
+        command: [sh, -c]
+        args: ["cat /tmp/message"]
+    - name: do-nothing
+      inputs:
+        parameters:
+          - name: message
+      container:
+        image: alpine:latest
+        command: [sh, -c]
+        args: ["echo nothing"]
+    - name: test-pipeline
+      dag:
+        tasks:
+          - name: create-artifact
+            template: create-artifact
+          - name: middle
+            depends: 'create-artifact'
+            template: parse
+            arguments:
+              artifacts:
+                - name: message
+                  from: '{{tasks.create-artifact.outputs.artifacts.output}}'
+          - name: output
+            template: do-nothing
+            depends: 'middle'
+            arguments:
+              parameters:
+                - name: message
+                  value: "{{item}}"
+            withParam: "{{tasks.middle.outputs.result}}"

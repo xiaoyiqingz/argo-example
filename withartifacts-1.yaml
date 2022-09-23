@@ -1,0 +1,43 @@
+# can write value in json file and output by outputs.parameters.valueFrom.path
+#
+#
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: test-artifact-
+spec:
+  entrypoint: test-pipeline
+  templates:
+    - name: create-artifact
+      container:
+        image: alpine:latest
+        command: [sh, -c]
+        args:
+          - >
+            echo '[{"foo":"bar"},{"bar":"baz"}]' | tee /tmp/output.json;
+      outputs:
+        parameters:
+          - name: output
+            valueFrom:
+              path: /tmp/output.json
+    - name: do-nothing
+      inputs:
+        parameters:
+          - name: message
+      container:
+        image: alpine:latest
+        command: [sh, -c]
+        args: ["echo nothing"]
+    - name: test-pipeline
+      dag:
+        tasks:
+          - name: create-artifact
+            template: create-artifact
+          - name: output
+            template: do-nothing
+            depends: 'create-artifact'
+            arguments:
+              parameters:
+                - name: message
+                  value: "{{item}}"
+            withParam: "{{tasks.create-artifact.outputs.parameters.output}}"
