@@ -1,0 +1,76 @@
+# template:A 处，message 要传入 item.Content，即解析处数组传入，如果传入item，下层无法解析item
+# -p payload='[{"Code":"01","Content":[{"Code":"01","File":"07","Target":177},{"Code":"01","File":"C5","Target":200}]},{"Code":"26","Content":[{"Code":"26","File":"07","Target":199},{"Code":"26","File":"C5","Target":222}]}]'
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: json-parameter-
+spec:
+  entrypoint: json-parameter
+  arguments:
+    parameters:
+      - name: payload
+        value: ["a"]
+  templates:
+    - name: json-parameter
+      inputs:
+        parameters:
+          - name: payload
+      dag:
+        tasks:
+          - name: A
+            template: echo
+            arguments:
+              parameters:
+                - name: ta
+                  value: "{{item.Code}}"
+                - name: message
+                  value: "{{item.Content}}"
+            withParam: "{{inputs.parameters.payload}}"
+          - name: B
+            dependencies: [A]
+            template: whalesay
+            arguments:
+              parameters:
+                - name: message
+                  value: B
+    - name: echo
+      inputs:
+        parameters:
+          - name: message
+      dag:
+        tasks:
+          - name: C
+            template: echo1
+            arguments:
+              parameters:
+                - name: ta
+                  value: "{{item.Code}}"
+                - name: file
+                  value: "{{item.File}}"
+                - name: target
+                  value: "{{item.Target}}"
+            withParam: "{{inputs.parameters.message}}"
+
+    - name: echo1
+      inputs:
+        parameters:
+          - name: ta
+          - name: file
+          - name: target
+      dag:
+        tasks:
+          - name: C
+            template: whalesay
+            arguments:
+              parameters:
+                - name: message
+                  value: "{{inputs.parameters.ta}} {{inputs.parameters.file}} {{inputs.parameters.target}}"
+
+    - name: whalesay
+      inputs:
+        parameters:
+          - name: message
+      container:
+        image: docker/whalesay
+        command: [cowsay]
+        args: ["{{inputs.parameters.message}}"]
