@@ -1,0 +1,25 @@
+# k8s 1.24 won’t generate Secrets any longer automatically for ServiceAccount
+# and we generate one attach to serviceaccount
+# get token
+# 1. kubectl get sa -n argo
+# 2. kubectl describe sa argo -n argo
+# 3. kubectl describe secret argo-secret -n argo
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argo-secret
+  namespace: argo
+  annotations:
+    kubernetes.io/service-account.name: argo
+type: kubernetes.io/service-account-token
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","kind":"ServiceAccount","metadata":{"annotations":{},"name":"argo","namespace":"argo"}}
+  name: argo
+  namespace: argo
+secrets:
+- name: argo-secret
